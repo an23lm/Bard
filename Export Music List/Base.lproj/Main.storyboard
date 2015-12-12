@@ -681,7 +681,7 @@
                                     <font key="font" metaFont="system"/>
                                 </buttonCell>
                                 <connections>
-                                    <action selector="selectAnImageFromFile:" target="XfG-lQ-9wD" id="aKH-BM-bZG"/>
+                                    <action selector="selectAFile:" target="XfG-lQ-9wD" id="fo3-gt-ms8"/>
                                 </connections>
                             </button>
                         </subviews>

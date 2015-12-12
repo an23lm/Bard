@@ -9,6 +9,7 @@
 import Cocoa
 
 class song {
+    var index: Int = 0
     var name: String = ""
     var artist: String = ""
     var album: String = ""
@@ -32,11 +33,10 @@ class ViewController: NSViewController, NSXMLParserDelegate {
     
     var songInfo: [song] = []
     
-    var tempName = ""
-    var tempAlbum = ""
-    var tempArtist = ""
     var currentElementName = ""
+    var currentFoundChar = ""
     var currentIndex = 0
+    let blankSpace = NSCharacterSet.whitespaceAndNewlineCharacterSet()
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -53,69 +53,47 @@ class ViewController: NSViewController, NSXMLParserDelegate {
     
     func parser(parser: NSXMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String]) {
         
-        if elementName == "dict" {
-            dictCount++
+        if elementName == "key" {
+            currentElementName = elementName
         }
-        if dictCount == 3 {
-            if elementName == "key" {
-                keyCount++
-            }
-        }
-        if keyCount == 2 {
-            if elementName == "string" {
-                isName = true
-            }
-        }
-        else if keyCount == 3 {
-            if elementName == "string" {
-                isArtist = true
-            }
-        }
-        else if keyCount == 5 {
-            if elementName ==  "string" {
-                isAlbum = true
-            }
-        }
-        
     }
     
     func parser(parser: NSXMLParser, foundCharacters string: String) {
         
-        if isName {
-            tempName += string
-        }
-        else if isArtist {
-            tempArtist += string
-        }
-        else if isAlbum {
-            tempAlbum += string
-        }
+        currentFoundChar += string
         
     }
     
     func parser(parser: NSXMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
         
-        if elementName == "dict" {
-            dictCount--
-            keyCount = 0
-        }
-        
         if isName {
-            songInfo.append(song())
-            songInfo.last?.name = tempName
-            tempName = ""
+            songInfo.last?.name = currentFoundChar
             isName = false
-            print(songInfo.last?.name)
-        }
-        else if isArtist {
-            songInfo.last?.artist = tempArtist
-            tempArtist = ""
-            isArtist = false
         }
         else if isAlbum {
-            songInfo.last?.album = tempAlbum
-            tempAlbum = ""
+            songInfo.last?.album = currentFoundChar
             isAlbum = false
+        }
+        else if isArtist {
+            songInfo.last?.artist = currentFoundChar
+            isArtist = false
+        }
+        
+        if currentElementName == "key" {
+            //print(currentFoundChar)
+            currentFoundChar = currentFoundChar.stringByTrimmingCharactersInSet(blankSpace)
+            switch currentFoundChar {
+            case "Name":
+                isName = true
+                songInfo.append(song())
+                currentIndex++
+            case "Artist":
+                isArtist = true
+            case "Album":
+                isAlbum = true
+            default: break
+            }
+            currentFoundChar = ""
         }
         
     }
@@ -125,7 +103,7 @@ class ViewController: NSViewController, NSXMLParserDelegate {
     }
     
     
-    @IBAction func selectAnImageFromFile(sender: AnyObject) {
+    @IBAction func selectAFile(sender: AnyObject) {
         let openPanel = NSOpenPanel()
         openPanel.allowsMultipleSelection = false
         openPanel.canChooseDirectories = false
@@ -154,14 +132,41 @@ class ViewController: NSViewController, NSXMLParserDelegate {
         if success {
             print(songInfo.count)
             print("Writing to a file")
-            let documentsUrl =  NSFileManager.defaultManager().URLsForDirectory(.DesktopDirectory, inDomains: .UserDomainMask).first! as NSURL
-            let path = documentsUrl.URLByAppendingPathComponent("music-list.txt")
+            
+            var count = 0
+            var doesExist = true
+            let dir = NSSearchPathForDirectoriesInDomains(.DesktopDirectory, .AllDomainsMask, true).first
+            let checkValidation = NSFileManager.defaultManager()
+
+            
+            var pathString = ""
+            
+            while doesExist {
+            
+                pathString = dir! + "/"
+                pathString += "music-list" + "-\(count)" + ".txt"
+                
+                print(pathString)
+                
+                if (checkValidation.fileExistsAtPath(pathString))
+                {
+                    count++
+                }
+                else
+                {
+                    print("create file");
+                    doesExist = false
+                }
+            }
+            
+            pathString = "file://" + pathString
+            let path = NSURL(string: pathString)
             print(path)
             
-            var string = "Music List\n"
+            var string = "Music List\n\n"
             
             do {
-                try string.writeToURL(path, atomically: true, encoding: NSUTF8StringEncoding)
+                try string.writeToURL(path!, atomically: true, encoding: NSUTF8StringEncoding)
             }
             catch let error as NSError {
                 print(error)
@@ -170,13 +175,19 @@ class ViewController: NSViewController, NSXMLParserDelegate {
             string = ""
             
             for song in songInfo {
-                string += "\"" + song.name + "\"" + " by " + song.artist + " from " + song.album + "\n"
+                string += "\"" + song.name + "\""
+                if song.artist != "" {
+                    string += " by " + song.artist
+                }
+                if song.album != "" {
+                    string += " from " + "\"" + song.album + "\"" + "\n"
+                }
             }
             
             let data = string.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: false)
             
             do {
-                let fileHandle = try NSFileHandle(forWritingToURL: path)
+                let fileHandle = try NSFileHandle(forWritingToURL: path!)
                 fileHandle.seekToEndOfFile()
                 fileHandle.writeData(data!)
                 fileHandle.closeFile()
@@ -185,18 +196,6 @@ class ViewController: NSViewController, NSXMLParserDelegate {
             catch let error as NSError {
                 print(error)
             }
-            
-            
-            /*
-            for song in songInfo {
-                do {
-                    try song.name.writeToURL(path, atomically: true, encoding: NSUTF8StringEncoding)
-                }
-                catch let error as NSError {
-                    print(error)
-                }
-            }
-            */
         }
         else {
             print("nope")
